@@ -41,6 +41,7 @@ import { on } from "../../foundation/kernel/events"
 import type { PrimitiveContext } from "../../foundation/kernel/primitive-types"
 import type { Store } from "../../foundation/kernel/store"
 import { shortcuts as shortcutManager } from "../../foundation/shortcuts/shortcuts"
+import { isTypingIn } from "../../foundation/shortcuts/shortcut-order"
 import { changeSource } from "../../foundation/kernel/input-source"
 import { elements } from "../../foundation/kernel/elements"
 
@@ -615,6 +616,21 @@ function menuApiBody(
 
   const entryOf = (el: HTMLElement) => byElement.get(el)
 
+  // A field in a closing submenu doesn't count, and one in a menu this one
+  // opened from does.
+  function isTypingInside() {
+    const active = activeElement(popup.element()?.ownerDocument)
+    if (!active || !isTypingIn(active)) {
+      return false
+    }
+    const owner = composedClosest(active, '[role="menu"]')
+    let menu: MenuNode | undefined = api
+    while (menu && menu.popupElement() !== owner) {
+      menu = menu.options().parent
+    }
+    return !!menu
+  }
+
   function highlight(
     key: string | null,
     { focus = true, scroll = false } = {}
@@ -834,6 +850,7 @@ function menuApiBody(
         }
       },
       highlight,
+      isTypingInside,
       childOpenChanged(childId: string, open: boolean) {
         if (open) {
           store.set({ openChild: childId })
@@ -901,11 +918,12 @@ function menuApiBody(
         return
       }
     }
+    const focus = !isTypingInside()
     if (
       store.get().highlighted !== entry.key ||
-      document.activeElement !== el
+      (focus && document.activeElement !== el)
     ) {
-      highlight(entry.key)
+      highlight(entry.key, { focus })
     }
     clearTimeout(hoverTimer)
     // In a sheet, a submenu replaces the items, so only a press opens it.
@@ -1092,6 +1110,13 @@ function menuApiBody(
     const target = event.target as HTMLElement
     // Keys from a submenu bubble through its parent's popup. Only the owner handles them.
     if (target.closest('[role="menu"]') !== popup.element()) {
+      return
+    }
+    if (
+      isTypingIn(event.composedPath()[0]) &&
+      event.key !== "Escape" &&
+      event.key !== "Tab"
+    ) {
       return
     }
     const list = entries.list()
