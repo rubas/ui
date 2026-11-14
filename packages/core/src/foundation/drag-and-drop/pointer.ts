@@ -55,13 +55,14 @@ type BindDragOptions = {
 
 /**
  * Follows the pointer that pressed `el` until it lifts, for a drag of your
- * own: a slider, a splitter, an item dragged to a new place. Uses pointer
- * capture, and listens on the document too, so the gesture keeps going
- * outside the element, outside the window, and when the element moves in the
- * document. Moves arrive at most once per frame. A release after the pointer
- * moved past `dragThreshold` swallows the click it sends, so a drag never
- * presses what it ends on, like a link. Returns a cleanup that ends it
- * without calling `onEnd`; call it when the component is destroyed.
+ * own: a slider, a splitter, an item dragged to a new place. Listens on the
+ * document, and captures the pointer once it moves past `dragThreshold`, so
+ * the gesture keeps going outside the element, outside the window, and when
+ * the element moves in the document. Moves arrive at most once per frame. A
+ * press that lifts before that stays a click on what it pressed, like a
+ * button inside `el`. A release after it swallows the click it sends, so a
+ * drag never presses what it ends on, like a link. Returns a cleanup that
+ * ends it without calling `onEnd`; call it when the component is destroyed.
  *
  * ```ts
  * on: {
@@ -97,11 +98,6 @@ function bindDrag(
   let started = !options.threshold && !options.onStart
   let dragged = false
 
-  try {
-    el.setPointerCapture(pointerId)
-  } catch {
-    // Synthetic events have no active pointer to capture.
-  }
   // Lock is granted later, or refused, so each move checks.
   const locked = () => el.ownerDocument.pointerLockElement === el
 
@@ -144,6 +140,11 @@ function bindDrag(
       isDrag(event.clientX - down.clientX, event.clientY - down.clientY)
     ) {
       dragged = true
+      try {
+        el.setPointerCapture(pointerId)
+      } catch {
+        // Synthetic events have no active pointer to capture.
+      }
       if (options.lock && down.pointerType === "mouse") {
         requestLock(el)
       }
@@ -190,8 +191,8 @@ function bindDrag(
     ["pointerup", onUp],
     ["pointercancel", onCancel],
   ]
-  // Listening on the document too covers pointers the element couldn't
-  // capture, and the moves pointer lock sends to the locked element.
+  // Listening on the document covers the moves before the capture, pointers
+  // the element couldn't capture, and the moves pointer lock sends to it.
   for (const [type, listener] of listeners) {
     el.ownerDocument.addEventListener(type, listener as EventListener)
   }
