@@ -14,4 +14,5 @@ export {
   shortcutOf,
   shortcutSlot,
 } from "./shortcut-slot"
+export { isTypingIn } from "./shortcut-order"
 export { registerShortcut, shortcuts, type Shortcuts } from "./shortcuts"

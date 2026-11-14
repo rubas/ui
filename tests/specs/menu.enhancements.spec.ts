@@ -1,7 +1,17 @@
+import type { Page } from "@playwright/test"
 import { expect, lastAction, menuNamed, test, waitForStill } from "../fixtures"
 
 // Behavior past the menu button pattern, tagged `@enhancement`. Untagged tests
 // here are pattern behavior every menu must have.
+
+async function addField(page: Page) {
+  await menuNamed(page, "File").evaluate((menu) => {
+    const field = document.createElement("input")
+    field.setAttribute("aria-label", "Note")
+    menu.append(field)
+  })
+  return page.getByRole("textbox", { name: "Note" })
+}
 
 test.describe("pattern details", () => {
   test.beforeEach(async ({ open }) => {
@@ -281,6 +291,41 @@ test.describe("enhancements", { tag: "@enhancement" }, () => {
     await page.keyboard.press("ArrowDown")
     await expect(page.getByRole("menuitem", { name: "Delete" })).toBeFocused()
     await expect(menuNamed(page, "Share")).toBeHidden()
+  })
+
+  test("a text field in the menu keeps focus while the pointer moves over an item and out", async ({
+    page,
+    open,
+  }) => {
+    await open("menu")
+    await page.getByRole("button", { name: "File" }).click()
+    const field = await addField(page)
+    await field.click()
+    const item = page.getByRole("menuitem", { name: "New file" })
+    await item.hover()
+    await expect(item).toHaveAttribute("data-highlighted", "")
+    await expect(field).toBeFocused()
+    const menu = (await menuNamed(page, "File").boundingBox())!
+    await page.mouse.move(menu.x + menu.width + 20, menu.y + 10)
+    await expect(item).not.toHaveAttribute("data-highlighted")
+    await expect(field).toBeFocused()
+  })
+
+  test("a text field in the menu keeps the keys typed into it, and Escape still closes the menu", async ({
+    page,
+    open,
+  }) => {
+    await open("menu")
+    await page.getByRole("button", { name: "File" }).click()
+    const field = await addField(page)
+    await field.click()
+    await page.keyboard.type("on it")
+    await page.keyboard.press("Home")
+    await page.keyboard.type("go ")
+    await expect(field).toHaveValue("go on it")
+    await expect(field).toBeFocused()
+    await page.keyboard.press("Escape")
+    await expect(menuNamed(page, "File")).toBeHidden()
   })
 
   test("switching windows closes the menu", async ({ page, open }) => {
