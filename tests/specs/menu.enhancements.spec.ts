@@ -311,6 +311,21 @@ test.describe("enhancements", { tag: "@enhancement" }, () => {
     await expect(field).toBeFocused()
   })
 
+  test("a text field in the menu keeps focus while the pointer moves through a submenu", async ({
+    page,
+    open,
+  }) => {
+    await open("menu")
+    await page.getByRole("button", { name: "File" }).click()
+    const field = await addField(page)
+    await field.click()
+    await page.getByRole("menuitem", { name: "Share" }).hover()
+    const email = page.getByRole("menuitem", { name: "Email" })
+    await email.hover()
+    await expect(email).toHaveAttribute("data-highlighted", "")
+    await expect(field).toBeFocused()
+  })
+
   test("a text field in the menu keeps the keys typed into it, and Escape still closes the menu", async ({
     page,
     open,

@@ -616,11 +616,19 @@ function menuApiBody(
 
   const entryOf = (el: HTMLElement) => byElement.get(el)
 
-  // A text field in the menu, like a search box, keeps focus while the
-  // pointer moves over items or leaves the menu.
+  // A field in a closing submenu doesn't count, and one in a menu this one
+  // opened from does.
   function isTypingInside() {
-    const active = document.activeElement
-    return isTypingIn(active) && !!popup.element()?.contains(active)
+    const active = activeElement(popup.element()?.ownerDocument)
+    if (!active || !isTypingIn(active)) {
+      return false
+    }
+    const owner = composedClosest(active, '[role="menu"]')
+    let menu: MenuNode | undefined = api
+    while (menu && menu.popupElement() !== owner) {
+      menu = menu.options().parent
+    }
+    return !!menu
   }
 
   function highlight(
@@ -1104,7 +1112,6 @@ function menuApiBody(
     if (target.closest('[role="menu"]') !== popup.element()) {
       return
     }
-    // A text field in the menu keeps its keys. Escape and Tab still close it.
     if (
       isTypingIn(event.composedPath()[0]) &&
       event.key !== "Escape" &&
