@@ -77,29 +77,28 @@ describe("bindDrag's cancelOnEscape", () => {
 describe("bindDrag's pointer capture", () => {
   function press() {
     const el = document.createElement("div")
-    const button = el.appendChild(document.createElement("button"))
     document.body.append(el)
-    el.setPointerCapture = vi.fn()
-    button.setPointerCapture = vi.fn()
-    el.addEventListener("pointerdown", (event) =>
-      cleanups.push(bindDrag(el, event, { onMove: () => {}, onEnd: () => {} }))
-    )
-    button.dispatchEvent(pointer("pointerdown", 0))
-    return { el, button }
+    const capture = vi.fn()
+    el.setPointerCapture = capture
+    const stop = bindDrag(el, pointer("pointerdown", 0), {
+      onMove: () => {},
+      onEnd: () => {},
+    })
+    cleanups.push(stop)
+    return capture
   }
 
-  test("a press that lifts within dragThreshold keeps the pointer on the button it pressed, so the click reaches the button", () => {
-    const { el, button } = press()
+  test("a press that lifts within dragThreshold leaves the pointer free, so its click reaches a button inside", () => {
+    const capture = press()
     document.dispatchEvent(pointer("pointermove", dragThreshold - 1))
     document.dispatchEvent(pointer("pointerup", dragThreshold - 1))
-    expect(button.setPointerCapture).toHaveBeenCalledTimes(1)
-    expect(el.setPointerCapture).not.toHaveBeenCalled()
+    expect(capture).not.toHaveBeenCalled()
   })
 
-  test("hands the pointer to the dragged element once it moves past dragThreshold", () => {
-    const { el } = press()
+  test("captures the pointer once it moves past dragThreshold", () => {
+    const capture = press()
     document.dispatchEvent(pointer("pointermove", dragThreshold))
-    expect(el.setPointerCapture).toHaveBeenCalledTimes(1)
+    expect(capture).toHaveBeenCalledTimes(1)
   })
 })
 
