@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-// The pieces every drag shares: Escape in `bindDrag`, `settleDraft` and `keepFocus`.
+// The pieces every drag shares: Escape and capture in `bindDrag`, `settleDraft` and `keepFocus`.
 import { afterEach, describe, expect, test, vi } from "vitest"
 import { createStore } from "../src/foundation/kernel/store"
-import { keepFocus, settleDraft, bindDrag } from "../src/index"
+import { keepFocus, settleDraft, bindDrag, dragThreshold } from "../src/index"
 
 const cleanups: (() => void)[] = []
 afterEach(() => {
@@ -71,6 +71,34 @@ describe("bindDrag's cancelOnEscape", () => {
     const { el, onEnd } = track(0)
     el.dispatchEvent(escape())
     expect(onEnd).toHaveBeenCalledWith(expect.anything(), true)
+  })
+})
+
+describe("bindDrag's pointer capture", () => {
+  function press() {
+    const el = document.createElement("div")
+    document.body.append(el)
+    const capture = vi.fn()
+    el.setPointerCapture = capture
+    const stop = bindDrag(el, pointer("pointerdown", 0), {
+      onMove: () => {},
+      onEnd: () => {},
+    })
+    cleanups.push(stop)
+    return capture
+  }
+
+  test("a press that lifts within dragThreshold leaves the pointer free, so its click reaches a button inside", () => {
+    const capture = press()
+    document.dispatchEvent(pointer("pointermove", dragThreshold - 1))
+    document.dispatchEvent(pointer("pointerup", dragThreshold - 1))
+    expect(capture).not.toHaveBeenCalled()
+  })
+
+  test("captures the pointer once it moves past dragThreshold", () => {
+    const capture = press()
+    document.dispatchEvent(pointer("pointermove", dragThreshold))
+    expect(capture).toHaveBeenCalledTimes(1)
   })
 })
 
