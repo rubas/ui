@@ -423,7 +423,9 @@ const menuSlots = (slot: SlotFactory<MenuState, MenuApi>) => ({
           return
         }
         if (store.get().highlighted !== null) {
-          api.internal.highlight(null)
+          api.internal.highlight(null, {
+            focus: !api.internal.isTypingInside(),
+          })
         }
       },
     },
